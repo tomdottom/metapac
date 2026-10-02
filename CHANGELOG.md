@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added per-package repo pinning to the `arch` backend. Pin with the
+  `"<repo>/<package>"` shorthand (e.g. `"extra/firefox"`) or the long-form
+  `{ name = "firefox", options = { repo = "extra" } }`; the repo is used only
+  at install time and does not affect installed-package matching.
+
 ## [0.10.2] - 2026-08-31
 
 ### Added
