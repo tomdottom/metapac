@@ -49,7 +49,6 @@ impl ArchPackageManager {
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ArchPackageOptions {
-    #[serde(default)]
     pub repo: Option<String>,
 }
 
@@ -356,6 +355,14 @@ mod tests {
             Arch::parse_package_name("vim"),
             ("vim".to_string(), ArchPackageOptions { repo: None })
         );
+    }
+
+    #[test]
+    fn repo_defaults_to_none_when_omitted() {
+        // An `Option` field needs no `#[serde(default)]`: an omitted `repo`
+        // deserializes to `None` (same as the flatpak backend's `remote`).
+        let opts: ArchPackageOptions = toml::from_str("").unwrap();
+        assert_eq!(opts.repo, None);
     }
 
     #[test]
