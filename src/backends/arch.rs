@@ -83,9 +83,8 @@ impl Backend for Arch {
                   update it with `sudo pacman -Sy` or similar command using your chosen AUR helper
                 - the package is actually a package group which is not valid in metapac group files,
                   see <https://github.com/ripytide/metapac#arch>
-                - the package name contains a `/` because you are trying to pin it to a repo:
-                  use the `<repo>/<package>` short-form or the `repo` option instead of
-                  putting the slash in the `name` field
+                - the package name contains a `/`: to pin it to a repository use the `<repo>/<package>`
+                  short-form string or the `repo` option, not a slash in the `name` field
 
             You can check to see if the package exists via `pacman -Si <package>` or a similar command using your chosen AUR helper.
         "}
