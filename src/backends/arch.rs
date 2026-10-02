@@ -56,9 +56,7 @@ pub struct ArchPackageOptions {
 #[serde(deny_unknown_fields)]
 pub struct ArchRepoOptions {}
 
-/// The argument to pass to the package manager when installing `name`: pinned
-/// packages are qualified as `<repo>/<name>`, unpinned ones are passed bare.
-fn install_target(name: &str, options: &ArchPackageOptions) -> String {
+fn repo_qualified_name(name: &str, options: &ArchPackageOptions) -> String {
     match &options.repo {
         Some(repo) => format!("{repo}/{name}"),
         None => name.to_string(),
@@ -189,7 +187,7 @@ impl Backend for Arch {
                 .chain(
                     packages
                         .iter()
-                        .map(|(name, options)| install_target(name, options)),
+                        .map(|(name, options)| repo_qualified_name(name, options)),
                 ),
                 config.package_manager.change_perms(),
             )?;
@@ -346,11 +344,11 @@ mod tests {
         let (name, opts) = Arch::parse_package_name("extra/firefox");
         assert_eq!(name, "firefox");
         assert_eq!(opts.repo.as_deref(), Some("extra"));
-        assert_eq!(install_target(&name, &opts), "extra/firefox");
+        assert_eq!(repo_qualified_name(&name, &opts), "extra/firefox");
 
         // an un-pinned package is unchanged end to end
         let (name, opts) = Arch::parse_package_name("vim");
         assert_eq!((name.as_str(), opts.repo.as_deref()), ("vim", None));
-        assert_eq!(install_target(&name, &opts), "vim");
+        assert_eq!(repo_qualified_name(&name, &opts), "vim");
     }
 }
