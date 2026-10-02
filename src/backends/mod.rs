@@ -63,9 +63,7 @@ pub trait Backend {
 
     /// Parse a short-form (bare string) package entry into a canonical name plus
     /// any options encoded directly in that string — for example a
-    /// `<repo>/<package>` prefix. The default performs no parsing, returning the
-    /// name unchanged with default options. Applied only to the short-form string
-    /// syntax, never the long-form table.
+    /// `<repo>/<package>` prefix.
     fn parse_package_name(name: &str) -> (String, Self::PackageOptions) {
         (name.to_string(), Self::PackageOptions::default())
     }
