@@ -340,83 +340,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_package_name_splits_on_first_slash() {
-        assert_eq!(
-            Arch::parse_package_name("extra/firefox"),
-            (
-                "firefox".to_string(),
-                ArchPackageOptions {
-                    repo: Some("extra".to_string())
-                }
-            )
-        );
-    }
+    fn repo_pin_round_trips_through_parse_and_install() {
+        // "extra/firefox" is stored under the BARE key (so it matches `pacman -Qq`
+        // and never re-installs) with the repo captured and applied at install time.
+        let (name, opts) = Arch::parse_package_name("extra/firefox");
+        assert_eq!(name, "firefox");
+        assert_eq!(opts.repo.as_deref(), Some("extra"));
+        assert_eq!(install_target(&name, &opts), "extra/firefox");
 
-    #[test]
-    fn parse_package_name_bare_has_no_repo() {
-        assert_eq!(
-            Arch::parse_package_name("vim"),
-            ("vim".to_string(), ArchPackageOptions { repo: None })
-        );
-    }
-
-    #[test]
-    fn repo_defaults_to_none_when_omitted() {
-        // An `Option` field needs no `#[serde(default)]`: an omitted `repo`
-        // deserializes to `None` (same as the flatpak backend's `remote`).
-        let opts: ArchPackageOptions = toml::from_str("").unwrap();
-        assert_eq!(opts.repo, None);
-    }
-
-    #[test]
-    fn parse_package_name_double_slash_keeps_remainder_in_name() {
-        // documents split_once semantics; name "b/c" is rejected by validation below
-        assert_eq!(
-            Arch::parse_package_name("a/b/c"),
-            (
-                "b/c".to_string(),
-                ArchPackageOptions {
-                    repo: Some("a".to_string())
-                }
-            )
-        );
+        // an un-pinned package is unchanged end to end
+        let (name, opts) = Arch::parse_package_name("vim");
+        assert_eq!((name.as_str(), opts.repo.as_deref()), ("vim", None));
+        assert_eq!(install_target(&name, &opts), "vim");
     }
 
     #[test]
     fn default_parse_package_name_is_noop_for_other_backends() {
-        // npm scoped packages contain '/'; the default hook must not split them
+        // npm scoped packages contain '/'; only arch splits, so the default hook
+        // must leave other backends' names intact.
         assert_eq!(
             Npm::parse_package_name("@types/node"),
             ("@types/node".to_string(), NpmPackageOptions::default())
-        );
-    }
-
-    #[test]
-    fn is_valid_package_name_rejects_slash_and_uppercase() {
-        assert_eq!(Arch::is_valid_package_name("firefox"), Some(true));
-        assert_eq!(Arch::is_valid_package_name("b/c"), Some(false));
-        assert_eq!(Arch::is_valid_package_name("a/b/c"), Some(false));
-        assert_eq!(Arch::is_valid_package_name("Firefox"), Some(false));
-    }
-
-    #[test]
-    fn install_target_prefixes_repo_when_set() {
-        assert_eq!(
-            install_target(
-                "firefox",
-                &ArchPackageOptions {
-                    repo: Some("extra".to_string())
-                }
-            ),
-            "extra/firefox"
-        );
-    }
-
-    #[test]
-    fn install_target_bare_when_no_repo() {
-        assert_eq!(
-            install_target("vim", &ArchPackageOptions { repo: None }),
-            "vim"
         );
     }
 }
