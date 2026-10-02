@@ -85,6 +85,9 @@ impl Backend for Arch {
                   update it with `sudo pacman -Sy` or similar command using your chosen AUR helper
                 - the package is actually a package group which is not valid in metapac group files,
                   see <https://github.com/ripytide/metapac#arch>
+                - the package name contains a `/` because you are trying to pin it to a repo:
+                  use the `<repo>/<package>` short-form or the `repo` option instead of
+                  putting the slash in the `name` field
 
             You can check to see if the package exists via `pacman -Si <package>` or a similar command using your chosen AUR helper.
         "}
@@ -105,12 +108,12 @@ impl Backend for Arch {
     fn is_valid_package_name(package: &str) -> Option<bool> {
         // see <https://wiki.archlinux.org/title/Arch_package_guidelines#Package_naming>
         //
-        // The `^...$` anchoring is intentional and must not be relaxed to an unanchored
-        // pattern: it enforces full-string validity, so a repo-qualified string such as
-        // `main/metapac` (the explicit form, which belongs in the `repo` option rather
-        // than embedded in the name) and any names containing uppercase characters are
-        // rejected in the `get_all_packages`-failed fallback path, per the anti-ambiguity
-        // contract on `Backend`.
+        // The `^...$` anchoring is intentional: it enforces full-string validity so a
+        // name containing a `/` (e.g. a repo-qualified `extra/firefox` that reached here
+        // un-split) or an uppercase letter is rejected outright, rather than accepted via
+        // a partial match. A repo pin is written as the `"<repo>/<package>"` short-form or
+        // the `repo` option — both normalized before validation — never as a slash in the
+        // name itself. Anchoring only affects the `get_all_packages`-failed fallback path.
         let regex = Regex::new("^[a-z0-9@._+-]+$").unwrap();
 
         Some(regex.is_match(package) && !package.starts_with('-') && !package.starts_with('.'))
@@ -389,9 +392,11 @@ mod tests {
     }
 
     #[test]
-    fn is_valid_package_name_rejects_slash() {
+    fn is_valid_package_name_rejects_slash_and_uppercase() {
         assert_eq!(Arch::is_valid_package_name("firefox"), Some(true));
         assert_eq!(Arch::is_valid_package_name("b/c"), Some(false));
+        assert_eq!(Arch::is_valid_package_name("a/b/c"), Some(false));
+        assert_eq!(Arch::is_valid_package_name("Firefox"), Some(false));
     }
 
     #[test]
