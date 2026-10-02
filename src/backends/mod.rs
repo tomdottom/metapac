@@ -62,9 +62,11 @@ pub trait Backend {
     fn invalid_package_help_text() -> String;
 
     /// Parse a short-form (bare string) package entry into a canonical name plus
-    /// any options encoded directly in that string. Default performs no parsing;
-    /// `arch` overrides it to split the `<repo>/<package>` shorthand. Applied only
-    /// to the short-form string syntax, never the long-form table.
+    /// any options encoded directly in that string. The default performs no
+    /// parsing: the name is used as-is with default options. A backend may
+    /// override this to pull options out of the name, for example a
+    /// `<repo>/<package>` prefix. Applied only to the short-form string syntax,
+    /// never the long-form table.
     fn parse_package_name(name: &str) -> (String, Self::PackageOptions) {
         (name.to_string(), Self::PackageOptions::default())
     }
