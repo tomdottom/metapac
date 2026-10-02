@@ -48,7 +48,10 @@ impl ArchPackageManager {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ArchPackageOptions {}
+pub struct ArchPackageOptions {
+    #[serde(default)]
+    pub repo: Option<String>,
+}
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -79,9 +82,21 @@ impl Backend for Arch {
         "}
     }
 
+    fn parse_package_name(name: &str) -> (String, Self::PackageOptions) {
+        match name.split_once('/') {
+            Some((repo, package)) => (
+                package.to_string(),
+                Self::PackageOptions {
+                    repo: Some(repo.to_string()),
+                },
+            ),
+            None => (name.to_string(), Self::PackageOptions { repo: None }),
+        }
+    }
+
     fn is_valid_package_name(package: &str) -> Option<bool> {
         // see <https://wiki.archlinux.org/title/Arch_package_guidelines#Package_naming>
-        let regex = Regex::new("[a-z0-9@._+-]+").unwrap();
+        let regex = Regex::new("^[a-z0-9@._+-]+$").unwrap();
 
         Some(regex.is_match(package) && !package.starts_with('-') && !package.starts_with('.'))
     }
@@ -132,7 +147,7 @@ impl Backend for Arch {
         let mut result = BTreeMap::new();
 
         for package in explicit_packages.lines() {
-            result.insert(package.to_string(), Self::PackageOptions {});
+            result.insert(package.to_string(), Self::PackageOptions { repo: None });
         }
 
         Ok(result)
@@ -294,5 +309,60 @@ impl Backend for Arch {
             Perms::Same,
             StdErr::Show,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_package_name_splits_on_first_slash() {
+        assert_eq!(
+            Arch::parse_package_name("extra/firefox"),
+            (
+                "firefox".to_string(),
+                ArchPackageOptions {
+                    repo: Some("extra".to_string())
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn parse_package_name_bare_has_no_repo() {
+        assert_eq!(
+            Arch::parse_package_name("vim"),
+            ("vim".to_string(), ArchPackageOptions { repo: None })
+        );
+    }
+
+    #[test]
+    fn parse_package_name_double_slash_keeps_remainder_in_name() {
+        // documents split_once semantics; name "b/c" is rejected by validation below
+        assert_eq!(
+            Arch::parse_package_name("a/b/c"),
+            (
+                "b/c".to_string(),
+                ArchPackageOptions {
+                    repo: Some("a".to_string())
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn default_parse_package_name_is_noop_for_other_backends() {
+        // npm scoped packages contain '/'; the default hook must not split them
+        assert_eq!(
+            Npm::parse_package_name("@types/node"),
+            ("@types/node".to_string(), NpmPackageOptions::default())
+        );
+    }
+
+    #[test]
+    fn is_valid_package_name_rejects_slash() {
+        assert_eq!(Arch::is_valid_package_name("firefox"), Some(true));
+        assert_eq!(Arch::is_valid_package_name("b/c"), Some(false));
     }
 }
