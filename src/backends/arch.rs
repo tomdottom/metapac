@@ -57,6 +57,15 @@ pub struct ArchPackageOptions {
 #[serde(deny_unknown_fields)]
 pub struct ArchRepoOptions {}
 
+/// The argument to pass to the package manager when installing `name`: pinned
+/// packages are qualified as `<repo>/<name>`, unpinned ones are passed bare.
+fn install_target(name: &str, options: &ArchPackageOptions) -> String {
+    match &options.repo {
+        Some(repo) => format!("{repo}/{name}"),
+        None => name.to_string(),
+    }
+}
+
 impl Backend for Arch {
     type Config = ArchConfig;
     type PackageOptions = ArchPackageOptions;
@@ -167,7 +176,12 @@ impl Backend for Arch {
                 ]
                 .into_iter()
                 .chain(no_confirm.then_some("--noconfirm"))
-                .chain(packages.keys().map(String::as_str)),
+                .map(ToString::to_string)
+                .chain(
+                    packages
+                        .iter()
+                        .map(|(name, options)| install_target(name, options)),
+                ),
                 config.package_manager.change_perms(),
             )?;
         }
@@ -364,5 +378,26 @@ mod tests {
     fn is_valid_package_name_rejects_slash() {
         assert_eq!(Arch::is_valid_package_name("firefox"), Some(true));
         assert_eq!(Arch::is_valid_package_name("b/c"), Some(false));
+    }
+
+    #[test]
+    fn install_target_prefixes_repo_when_set() {
+        assert_eq!(
+            install_target(
+                "firefox",
+                &ArchPackageOptions {
+                    repo: Some("extra".to_string())
+                }
+            ),
+            "extra/firefox"
+        );
+    }
+
+    #[test]
+    fn install_target_bare_when_no_repo() {
+        assert_eq!(
+            install_target("vim", &ArchPackageOptions { repo: None }),
+            "vim"
+        );
     }
 }
