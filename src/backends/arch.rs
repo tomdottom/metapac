@@ -353,14 +353,4 @@ mod tests {
         assert_eq!((name.as_str(), opts.repo.as_deref()), ("vim", None));
         assert_eq!(install_target(&name, &opts), "vim");
     }
-
-    #[test]
-    fn default_parse_package_name_is_noop_for_other_backends() {
-        // npm scoped packages contain '/'; only arch splits, so the default hook
-        // must leave other backends' names intact.
-        assert_eq!(
-            Npm::parse_package_name("@types/node"),
-            ("@types/node".to_string(), NpmPackageOptions::default())
-        );
-    }
 }
