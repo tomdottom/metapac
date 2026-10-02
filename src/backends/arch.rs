@@ -48,11 +48,20 @@ impl ArchPackageManager {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ArchPackageOptions {}
+pub struct ArchPackageOptions {
+    pub repo: Option<String>,
+}
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ArchRepoOptions {}
+
+fn repo_qualified_name(name: &str, options: &ArchPackageOptions) -> String {
+    match &options.repo {
+        Some(repo) => format!("{repo}/{name}"),
+        None => name.to_string(),
+    }
+}
 
 impl Backend for Arch {
     type Config = ArchConfig;
@@ -74,14 +83,35 @@ impl Backend for Arch {
                   update it with `sudo pacman -Sy` or similar command using your chosen AUR helper
                 - the package is actually a package group which is not valid in metapac group files,
                   see <https://github.com/ripytide/metapac#arch>
+                - the package name contains a `/`: to pin it to a repository use the `<repo>/<package>`
+                  short-form string or the `repo` option, not a slash in the `name` field
 
             You can check to see if the package exists via `pacman -Si <package>` or a similar command using your chosen AUR helper.
         "}
     }
 
+    fn parse_package_name(name: &str) -> (String, Self::PackageOptions) {
+        match name.split_once('/') {
+            Some((repo, package)) => (
+                package.to_string(),
+                Self::PackageOptions {
+                    repo: Some(repo.to_string()),
+                },
+            ),
+            None => (name.to_string(), Self::PackageOptions { repo: None }),
+        }
+    }
+
     fn is_valid_package_name(package: &str) -> Option<bool> {
         // see <https://wiki.archlinux.org/title/Arch_package_guidelines#Package_naming>
-        let regex = Regex::new("[a-z0-9@._+-]+").unwrap();
+        //
+        // The `^...$` anchoring is intentional: it enforces full-string validity so a
+        // name containing a `/` (e.g. a repo-qualified `extra/firefox` that reached here
+        // un-split) or an uppercase letter is rejected outright, rather than accepted via
+        // a partial match. A repo pin is written as the `"<repo>/<package>"` short-form or
+        // the `repo` option — both normalized before validation — never as a slash in the
+        // name itself. Anchoring only affects the `get_all_packages`-failed fallback path.
+        let regex = Regex::new("^[a-z0-9@._+-]+$").unwrap();
 
         Some(regex.is_match(package) && !package.starts_with('-') && !package.starts_with('.'))
     }
@@ -132,7 +162,7 @@ impl Backend for Arch {
         let mut result = BTreeMap::new();
 
         for package in explicit_packages.lines() {
-            result.insert(package.to_string(), Self::PackageOptions {});
+            result.insert(package.to_string(), Self::PackageOptions { repo: None });
         }
 
         Ok(result)
@@ -152,7 +182,12 @@ impl Backend for Arch {
                 ]
                 .into_iter()
                 .chain(no_confirm.then_some("--noconfirm"))
-                .chain(packages.keys().map(String::as_str)),
+                .map(ToString::to_string)
+                .chain(
+                    packages
+                        .iter()
+                        .map(|(name, options)| repo_qualified_name(name, options)),
+                ),
                 config.package_manager.change_perms(),
             )?;
         }
@@ -294,5 +329,25 @@ impl Backend for Arch {
             Perms::Same,
             StdErr::Show,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn repo_pin_round_trips_through_parse_and_install() {
+        // "extra/firefox" is stored under the BARE key (so it matches `pacman -Qq`
+        // and never re-installs) with the repo captured and applied at install time.
+        let (name, opts) = Arch::parse_package_name("extra/firefox");
+        assert_eq!(name, "firefox");
+        assert_eq!(opts.repo.as_deref(), Some("extra"));
+        assert_eq!(repo_qualified_name(&name, &opts), "extra/firefox");
+
+        // an un-pinned package is unchanged end to end
+        let (name, opts) = Arch::parse_package_name("vim");
+        assert_eq!((name.as_str(), opts.repo.as_deref()), ("vim", None));
+        assert_eq!(repo_qualified_name(&name, &opts), "vim");
     }
 }

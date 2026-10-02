@@ -152,7 +152,10 @@ fn parse_toml_key_value(
                         for package in packages {
                             let package =
                                 match package {
-                                    toml::Value::String(x) => ComplexItem { name: x.to_string(), options: Default::default(), hooks: Hooks::default() },
+                                    toml::Value::String(x) => {
+                                        let (name, options) = <$upper_backend as Backend>::parse_package_name(x);
+                                        ComplexItem { name, options, hooks: Hooks::default() }
+                                    },
                                     toml::Value::Table(x) => x.clone().try_into::<ComplexItem<<$upper_backend as Backend>::PackageOptions>>()?,
                                     _ => return Err(eyre!("the \"{backend_property}.packages\" array in the {group_file:?} group file has a package which is neither a string or a table")),
                                 };

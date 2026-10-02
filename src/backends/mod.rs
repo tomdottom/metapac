@@ -55,11 +55,18 @@ pub(crate) use apply_backends;
 
 pub trait Backend {
     type Config;
-    type PackageOptions;
+    type PackageOptions: Default;
     type RepoOptions;
 
     /// Help text to display if an invalid package is given.
     fn invalid_package_help_text() -> String;
+
+    /// Parse a short-form (bare string) package entry into a canonical name plus
+    /// any options encoded directly in that string — for example a
+    /// `<repo>/<package>` prefix.
+    fn parse_package_name(name: &str) -> (String, Self::PackageOptions) {
+        (name.to_string(), Self::PackageOptions::default())
+    }
 
     /// If possible the backend will attempt to decide whether the given package name is valid.
     ///

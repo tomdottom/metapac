@@ -209,6 +209,26 @@ Alternatively, you could create a new group file using the packages from
 the package group, which you can get from the command: `pacman -Sgq
 <group_name>`.
 
+#### Pinning a Package to a Repository
+
+By default a package is installed from whichever repository your package
+manager resolves its name to. To force a specific repository, pin it with the
+`"<repo>/<package>"` shorthand or the long-form `repo` option (both shown in
+the example group file).
+
+The repo is only an install-time hint: when installing a pinned package
+`metapac` passes `<repo>/<package>` (e.g. `extra/firefox`) to the package
+manager instead of the bare package name. It does not affect how installed
+packages are matched against your group files (matching is always done by
+package name alone), so changing or adding a repo for an already-installed
+package will not cause it to be reinstalled, and `metapac` does not check
+which repository an installed package actually came from.
+
+The repo is passed on to the `package_manager` set in your config, so it
+must be understood by that package manager. In particular, an `aur/<package>`
+pin only works when `package_manager` is an AUR helper (`paru`, `yay`,
+`pikaur` or `pamac`) and not plain `pacman`, which has no `aur` repo.
+
 ### brew
 
 Standard usage.
@@ -413,6 +433,9 @@ arch = {
   packages = [
     "package1",
     { name = "package2" },
+    # pin a package to a repository (these two forms are equivalent):
+    "extra/package3",
+    { name = "package4", options = { repo = "extra" } },
     {
       name = "syncthing",
       hooks = {
