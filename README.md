@@ -212,22 +212,9 @@ the package group, which you can get from the command: `pacman -Sgq
 #### Pinning a Package to a Repository
 
 By default a package is installed from whichever repository your package
-manager resolves its name to. If you want a package to come from a specific
-repository you can pin it, either with the `"<repo>/<package>"` shorthand or
-with the long-form `repo` option. The two forms are equivalent, so
-`"extra/firefox"` means exactly the same as
-`{ name = "firefox", options = { repo = "extra" } }`:
-
-```toml
-arch = {
-  packages = [
-    # shorthand
-    "extra/firefox",
-    # long-form
-    { name = "lib32-mesa", options = { repo = "multilib" } },
-  ]
-}
-```
+manager resolves its name to. To force a specific repository, pin it with the
+`"<repo>/<package>"` shorthand or the long-form `repo` option (both shown in
+the example group file).
 
 The repo is only an install-time hint: when installing a pinned package
 `metapac` passes `<repo>/<package>` (e.g. `extra/firefox`) to the package
@@ -446,6 +433,9 @@ arch = {
   packages = [
     "package1",
     { name = "package2" },
+    # pin a package to a repository (these two forms are equivalent):
+    "extra/package3",
+    { name = "package4", options = { repo = "extra" } },
     {
       name = "syncthing",
       hooks = {
