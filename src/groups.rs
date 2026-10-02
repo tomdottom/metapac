@@ -152,7 +152,10 @@ fn parse_toml_key_value(
                         for package in packages {
                             let package =
                                 match package {
-                                    toml::Value::String(x) => ComplexItem { name: x.to_string(), options: Default::default(), hooks: Hooks::default() },
+                                    toml::Value::String(x) => {
+                                        let (name, options) = <$upper_backend as Backend>::parse_package_name(x);
+                                        ComplexItem { name, options, hooks: Hooks::default() }
+                                    },
                                     toml::Value::Table(x) => x.clone().try_into::<ComplexItem<<$upper_backend as Backend>::PackageOptions>>()?,
                                     _ => return Err(eyre!("the \"{backend_property}.packages\" array in the {group_file:?} group file has a package which is neither a string or a table")),
                                 };
@@ -188,4 +191,50 @@ fn parse_toml_key_value(
     Err(eyre!(
         "unrecognised property: {key:?} in group file: {group_file:?}"
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn arch_shorthand_and_table_parse_to_bare_keys_with_repo() {
+        let toml = r#"
+            arch.packages = [
+                "extra/firefox",
+                { name = "mesa", options = { repo = "multilib" } },
+                "vim",
+            ]
+        "#;
+        let parsed = parse_group_file(Path::new("t.toml"), toml).unwrap();
+
+        let got: Vec<(String, Option<String>)> = parsed
+            .arch
+            .packages
+            .iter()
+            .map(|p| (p.name.clone(), p.options.repo.clone()))
+            .collect();
+
+        assert_eq!(
+            got,
+            vec![
+                ("firefox".to_string(), Some("extra".to_string())),
+                ("mesa".to_string(), Some("multilib".to_string())),
+                ("vim".to_string(), None),
+            ]
+        );
+    }
+
+    #[test]
+    fn arch_shorthand_equals_long_form_table() {
+        let short =
+            parse_group_file(Path::new("t.toml"), r#"arch.packages = ["extra/firefox"]"#).unwrap();
+        let table = parse_group_file(
+            Path::new("t.toml"),
+            r#"arch.packages = [{ name = "firefox", options = { repo = "extra" } }]"#,
+        )
+        .unwrap();
+        assert_eq!(short.arch.packages, table.arch.packages);
+    }
 }
