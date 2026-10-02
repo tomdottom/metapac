@@ -31,6 +31,10 @@ fn unmanaged() {
         .filter(|code| code.lang == Some("toml".to_string()))
         .collect::<Vec<_>>();
 
+    // NOTE: `nodes.pop()` above walks the tree as a stack, so `toml_blocks` is in REVERSE
+    // document order: `toml_blocks[0]` is the LAST toml block in the README and
+    // `toml_blocks[1]` the second-to-last. Appending a new ```toml block at the END of the
+    // README would shift these indices and break this test.
     let config = &toml_blocks[1].value;
     let group = &toml_blocks[0].value;
 

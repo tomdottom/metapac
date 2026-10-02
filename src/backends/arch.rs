@@ -105,6 +105,12 @@ impl Backend for Arch {
 
     fn is_valid_package_name(package: &str) -> Option<bool> {
         // see <https://wiki.archlinux.org/title/Arch_package_guidelines#Package_naming>
+        //
+        // The `^...$` anchoring is intentional and must not be relaxed to an unanchored
+        // pattern: it enforces full-string validity, so partial matches such as
+        // `main/metapac` (the implicit/ambiguous repo-qualified form) and any names
+        // containing uppercase characters are rejected in the `get_all_packages`-failed
+        // fallback path, per the anti-ambiguity contract on `Backend`.
         let regex = Regex::new("^[a-z0-9@._+-]+$").unwrap();
 
         Some(regex.is_match(package) && !package.starts_with('-') && !package.starts_with('.'))

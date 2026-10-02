@@ -237,4 +237,12 @@ mod tests {
         .unwrap();
         assert_eq!(short.arch.packages, table.arch.packages);
     }
+
+    #[test]
+    fn non_arch_backend_does_not_split_slash_in_name() {
+        let parsed =
+            parse_group_file(Path::new("t.toml"), r#"npm.packages = ["@scope/pkg"]"#).unwrap();
+        assert_eq!(parsed.npm.packages.len(), 1);
+        assert_eq!(parsed.npm.packages[0].name, "@scope/pkg");
+    }
 }
